@@ -195,7 +195,7 @@ adaboost_clf = Pipeline(steps=[
 | GaussianNB         | 0.326056  | 0.305854 |
 
 
-## Algorithm results on a final dataset
+### Algorithm results on a final dataset
 
 | Algorithm          | Precision | Recall  |
 |--------------------|-----------|---------|
@@ -241,12 +241,3 @@ In order to cross-validate my model, I have split my learning dataset into two p
 ## Final results
 - Precision: 0.46214
 - Recall: 0.32650
-
-Full output:
-
-```
-$ python tester.py
-Pipeline(steps=[('SKB', SelectKBest(k=9, score_func=<function f_classif at 0x10aaeeed8>)), ('PCA', PCA(copy=True, n_components=5, whiten=True)), ('GaussianNB', GaussianNB())])
-	Accuracy: 0.85827	Precision: 0.45833	Recall: 0.34650	F1: 0.39465	F2: 0.36428
-	Total predictions: 15000	True positives:  693	False positives:  819	False negatives: 1307	True negatives: 12181
-```
