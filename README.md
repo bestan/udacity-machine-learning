@@ -47,7 +47,9 @@ There were several outliers in the dataset, which were removed.
 
 
 ## Selected features
-I have used SelectKBest to select best features. Following snippet demonstrates calculated scores:
+Machine learning algorithms are as good as selected features, which is why it was crucial to select the features correctly for all algorithms used.
+
+Following snippet demonstrates calculated scores for each feature:
 
 ```
 exercised_stock_options: 24.82
@@ -73,6 +75,16 @@ deferral_payments: 0.22
 from_messages: 0.17
 restricted_stock_deferred: 0.07
 ```
+
+I have used SelectKBest to select K best features, but having 3 algorithms with completely different parameters, it is quite unfeasible to pick features manually. To solve this problem I have used cross-validated grid-search (GridSearchCV) to choose the right number of K best features in combination with parameter tuning.
+
+Numbers of selected features for each algorithm are the following:
+
+- LogisticRegression: 17 features
+- AdaBoostClassifier: 16 features
+- GaussianNB: 10 features
+
+More on that in parameter tuning section.
 
 I have also used MinMaxScaler to perform min-max scaling because it has slightly increased performance of my classifiers.
 
@@ -145,7 +157,7 @@ I have selected an algorithm that selects 9 K best features, then performs a Pri
 
 ```python
 gaussian_clf = Pipeline(steps=[
-    ("SKB", SelectKBest(f_classif, k=9)),
+    ("SKB", SelectKBest(f_classif, k=10)),
     ("PCA", PCA(whiten=True, n_components=5)),
     ("GaussianNB", GaussianNB())
 ])
@@ -155,26 +167,66 @@ I have also tried using logistic regression and adaptive boosting classifiers, b
 
 ```python
 logistic_regression_clf = Pipeline(steps=[
-    ("SelectKBest", SelectKBest(f_classif, k=10)),
+    ("SelectKBest", SelectKBest(f_classif, k=17)),
     ("LogisticRegression", LogisticRegression(
-        C=10**10,
-        tol=10**-10,
+        C=100000000,
+        tol=1e-6,
         solver='liblinear'
     ))
 ])
 
 adaboost_clf = Pipeline(steps=[
-    ("SelectKBest", SelectKBest(f_classif, k=5)),
+    ("SelectKBest", SelectKBest(f_classif, k=16)),
     ("AdaBoostClassifier", AdaBoostClassifier(
         algorithm='SAMME',
-        n_estimators=50
+        n_estimators=20
     ))
 ])
+
+
 ```
+
+### Algorithm results on a training dataset
+
+| Algorithm          | Precision | Recall   |
+|--------------------|-----------|----------|
+| LogisticRegression | 0.295817  | 0.275651 |
+| AdaBoostClassifier | 0.387336  | 0.254512 |
+| GaussianNB         | 0.326056  | 0.305854 |
+
+
+## Algorithm results on a final dataset
+
+| Algorithm          | Precision | Recall  |
+|--------------------|-----------|---------|
+| LogisticRegression | 0.26657   | 0.19100 |
+| AdaBoostClassifier | 0.50117   | 0.32250 |
+| GaussianNB         | 0.46214   | 0.32650 |
+
+
+AdaBoostClassifier has slightly better performance on a final dataset than GaussianNB. However, AdaBoostClassifier didn't pass >0.3 criteria when running on the training dataset. I decided to avoid biasing my decision by picking an algorithm based on the results from the final dataset, and instead chose GaussianNB based on the results from the training dataset.
+
+## Parameter tuning
+
+Most machine learning algorithms are parameterized and different values for these parameters might significantly affect the end-result. The best chosen algorithm for a particular problem might underperform and show lower performance than all other algorithms if parameters are not chosen and tuned correctly. Therefore, it is important to tune the parameters for all algorithms in order to maximize the performance.
 
 In order to improve the performance of these algorithms, I have been tuning several parameters. For all algorithms I have tried different values of K best features. For the naive bayes pipeline, I have also tried different number of components and found that `5` works the best. For logistic regression and adaptive boosting classifiers I have tried different values of `C, tol, solver` and `algorithm, n_estimators` correspondingly.
 
-Choosing ~10 features worked the best (naive bayes pipeline showed slightly better performance with 9 features). As soon as number of features was going higher or lower, the performance significantly dropped for all algorithms. Tuning number of components also made a noticeable difference for the naive bayes pipeline.
+To automate this process, I have used cross-validated grid-search in order to test over 600 combinations of parameters.
+
+#### GridSearchCV results (best set of parameters for each algorithm)
+- LogisticRegression
+  - SelectKBest - k=17 (i.e. 17 best features were selected)
+  - C=100000000
+  - tol=1e-06
+- AdaBoostClassifier
+  - SelectKBest - k=16
+  - n_estimators=20
+- GaussianNB
+  - SelectKBest - k=10
+  - PCA - n_components=5 and whiten=True
+
+Results obtained from these algorithms and parameters are demonstrated in the previous section.
 
 ## Evaluation
 I have used precision and recall as evaluation metrics. Both of these metrics are suitable for evaluating performance on a specific class, which is what I am doing in this project. According to the project's specification, both recall and evaluation should have values higher than 0.3 for the algorithm to be acceptable.
@@ -182,13 +234,13 @@ I have used precision and recall as evaluation metrics. Both of these metrics ar
 In the context of this project, precision rate indicates number of POIs that were identified correctly over all POIs identified (i.e. true positives + false positives). Recall indicates number of POIs that were identified correctly over all POIs in the dataset.
 
 ## Validation
-Validation means using a a validation test set for tuning the parameters of a classifier. It is important to perform validation and tune the parameters in order to achieve better performance, but the results on a validation test set will always be biased since it's been using for tuning itself.
+Cross-validation is a technique for assessing how a model would perform on a dataset that it hasn't seen yet. This kind of testing is crucial for assessing performance of the algorithm as well as tuning parameters. Without assessing the performance, the algorithm might show very poor results on the data it hasn't seen. However, it is very important to learn the parameters of a prediction function and test it on a completely different dataset. Otherwise, the model would be extremely biased and might not work correctly on yet-unseen data.
 
-I have used cross validation technique that randomly splits the dataset into train and test subsets. 33% of the dataset has been used for testing.
+In order to cross-validate my model, I have split my learning dataset into two parts - training and testing. The testing dataset accounted for 33% of the whole learning dataset. I have used training dataset to create and train my classifiers. As soon as classifiers were ready, I have used my testing dataset to assess the performance, tune parameters and choose the final algorithm based on the results.
 
 ## Final results
-- Precision: 0.45833
-- Recall: 0.34650
+- Precision: 0.46214
+- Recall: 0.32650
 
 Full output:
 
